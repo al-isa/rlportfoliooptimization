@@ -60,6 +60,7 @@ class MarketSimulator:
 
         #return = mu + shock * volatility
         returns = mu + shock * self.volatility
+        returns = np.clip(returns, -0.1, 0.1) #limit to +- 10%
         return returns
 
     def step(self):

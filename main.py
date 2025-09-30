@@ -5,7 +5,7 @@ if __name__ == "__main__":
 
     print("Initial prices:", sim.prices)
     for _ in range(5):
-        prices, returns = sim.step()
-        print(f"Day {sim.current_day}:")
+        prices, returns, regime = sim.step()
+        print(f"Day {sim.current_day} | Regime: {regime}")
         print("  Prices:", prices)
         print("  Returns:", returns)

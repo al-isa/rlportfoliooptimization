@@ -7,6 +7,13 @@ class MarketSimulator:
         self.n_days = n_days
         # self.current_day = 0
         self.seed = seed
+        #placeholder
+        self.transaction_cost = 0.001
+        self.portfolio_value = 1.0
+        self.weights = np.ones(self.n_assets) / self.n_assets #equal weights
+        self.last_weights = self.weights.copy()
+        self.portfolio_history = [self.portfolio_value]
+        self.daily_portfolio_returns = []
         self.reset()
 
         # #simulated log returns for each asset (random for now)
@@ -15,6 +22,22 @@ class MarketSimulator:
         # #initial prices (eg, $100 per asset)
         # self.prices = np.full(n_assets, 100.0)
         # self.price_history = [self.prices.copy()]
+
+    def set_weights(self, new_weights):
+        """
+        agent chooses new portfolio weights (must sum to 1)
+        transaction cost is applied based on change in weights
+        """
+        new_weights = np.array(new_weights)
+        if not np.isclose(np.sum(new_weights), 1.0):
+            raise ValueError("Weights must sum to 1")
+    
+        #Calculate cost of reallocating (L1 distance between the weights)
+        weight_change = np.abs(new_weights - self.last_weights)
+        cost = self.transaction_cost * np.sum(weight_change) * self.portfolio_value
+
+        self.last_weights = new_weights.copy()
+        self.portfolio_value -= cost #apply transaction cost
 
     def reset(self):
         """Reset Simulation"""
@@ -75,5 +98,17 @@ class MarketSimulator:
         self.prices *= np.exp(returns_today)
         self.current_day += 1
         self.price_history.append(self.prices.copy())
+
+        #prtfolio return = dot(weights, asset returns)
+        portfolio_return = np.dot(self.weights, returns_today)
+        self.portfolio_value *= np.exp(portfolio_return)
+        self.portfolio_history.append(self.portfolio_value)
+        self.daily_portfolio_returns(portfolio_return)
         
-        return self.prices.copy(), returns_today.copy(), self.regime
+        return (
+            self.prices.copy(), 
+            returns_today.copy(), 
+            self.regime,
+            portfolio_return,
+            self.portfolio_value
+        )

@@ -3,9 +3,16 @@ from simulator import MarketSimulator
 if __name__ == "__main__":
     sim = MarketSimulator(n_assets=3, n_days=5)
 
+    #equal allocation
+    sim.set_weights([0.4, 0.3, 0.3]) #agent can change this dynamically
+
+
     print("Initial prices:", sim.prices)
+    print("Initial portfolio value:", sim.portfolio_value)
+
     for _ in range(5):
-        prices, returns, regime = sim.step()
+        prices, returns, regime, p_return, p_value = sim.step()
         print(f"Day {sim.current_day} | Regime: {regime}")
-        print("  Prices:", prices)
-        print("  Returns:", returns)
+        print("  Prices:", prices.round(2))
+        print("  Returns:", returns.round(4))
+        print("  Portfolio return {:.4f} | Value: {:.4f}".format(p_return, p_value))

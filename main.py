@@ -22,6 +22,7 @@ if __name__ == "__main__":
     print("Cumulative Return: {:.2f}%".format(sim.cumulative_return() * 100))
     print("Sharpe Ratio: {:.4f}".format(sim.compute_sharpe_ratio()))
 
-    plot_portfolio_value(sim.portfolio_history)
-    plot_asset_prices(sim.price_history)
-    plot_with_regimes(sim.portfolio_history, sim.regime_history)
+    #visulaization stuff
+    # plot_portfolio_value(sim.portfolio_history)
+    # plot_asset_prices(sim.price_history)
+    # plot_with_regimes(sim.portfolio_history, sim.regime_history)

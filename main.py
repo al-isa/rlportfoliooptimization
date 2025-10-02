@@ -1,4 +1,5 @@
 from simulator import MarketSimulator
+from plot import plot_asset_prices, plot_portfolio_value, plot_with_regimes
 
 if __name__ == "__main__":
     sim = MarketSimulator(n_assets=3, n_days=5)
@@ -20,3 +21,7 @@ if __name__ == "__main__":
     print("\nFinal Portfolio Value:", sim.portfolio_value)
     print("Cumulative Return: {:.2f}%".format(sim.cumulative_return() * 100))
     print("Sharpe Ratio: {:.4f}".format(sim.compute_sharpe_ratio()))
+
+    plot_portfolio_value(sim.portfolio_history)
+    plot_asset_prices(sim.price_history)
+    plot_with_regimes(sim.portfolio_history, [sim.regime] * len(sim.portfolio_history)) # temp: static regime

@@ -81,6 +81,8 @@ class MarketSimulator:
 
         #simulated daily returns will be created dynamically
         self.daily_returns = []
+        
+        self.regime_history = []
 
     def _update_regime(self):
         """Switch between bull and bear regimes"""
@@ -125,6 +127,7 @@ class MarketSimulator:
         self.portfolio_value *= np.exp(portfolio_return)
         self.portfolio_history.append(self.portfolio_value)
         self.daily_portfolio_returns.append(portfolio_return)
+        self.regime_history.append(self.regime)
         
         return (
             self.prices.copy(), 

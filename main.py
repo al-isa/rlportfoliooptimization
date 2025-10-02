@@ -16,3 +16,7 @@ if __name__ == "__main__":
         print("  Prices:", prices.round(2))
         print("  Returns:", returns.round(4))
         print("  Portfolio return {:.4f} | Value: {:.4f}".format(p_return, p_value))
+    
+    print("\nFinal Portfolio Value:", sim.portfolio_value)
+    print("Cumulative Return: {:.2f}%".format(sim.cumulative_return() * 100))
+    print("Sharpe Ratio: {:.4f}".format(sim.compute_sharpe_ratio()))

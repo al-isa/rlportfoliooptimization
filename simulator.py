@@ -39,6 +39,27 @@ class MarketSimulator:
         self.last_weights = new_weights.copy()
         self.portfolio_value -= cost #apply transaction cost
 
+    def compute_sharpe_ratio(self):
+        """
+        Calculate annualized Sharpe Ratio of the portfolio
+        Assume daily returns, risk-free rate = 0
+        """
+        returns = np.array(self.daily_portfolio_returns)
+        if len(returns) < 2:
+            return 0.0 #not enough data
+        
+        mean_return = np.mean(returns)
+        std_return = np.std(returns)
+
+        if std_return == 0:
+            return 0.0
+        
+        sharpe = (mean_return / std_return) * np.sqrt(252)
+        return sharpe
+    
+    def cumulative_return(self):
+        return self.portfolio_value - 1.0
+
     def reset(self):
         """Reset Simulation"""
         np.random.seed(self.seed)
@@ -103,7 +124,7 @@ class MarketSimulator:
         portfolio_return = np.dot(self.weights, returns_today)
         self.portfolio_value *= np.exp(portfolio_return)
         self.portfolio_history.append(self.portfolio_value)
-        self.daily_portfolio_returns(portfolio_return)
+        self.daily_portfolio_returns.append(portfolio_return)
         
         return (
             self.prices.copy(), 

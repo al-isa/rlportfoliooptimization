@@ -24,4 +24,4 @@ if __name__ == "__main__":
 
     plot_portfolio_value(sim.portfolio_history)
     plot_asset_prices(sim.price_history)
-    plot_with_regimes(sim.portfolio_history, [sim.regime] * len(sim.portfolio_history)) # temp: static regime
+    plot_with_regimes(sim.portfolio_history, sim.regime_history)

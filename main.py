@@ -10,7 +10,7 @@ if __name__ == "__main__":
 
     n_assets = sim.n_assets
     state_size = 3 * n_assets + 1
-    agent = PPOAgent(n_assets=n_assets, state_size=state_size)
+    agent = PPOAgent(n_assets=n_assets, state_size=3*n_assets+1)
 
 
     print("Initial prices:", sim.prices)
@@ -23,7 +23,12 @@ if __name__ == "__main__":
         current_weights = sim.weights
         value = np.array([sim.portfolio_value])
 
-        state = np.concatenate([prices, recent_returns, current_weights, value])
+        state = np.concatenate([
+            sim.prices, 
+            np.array(sim.daily_returns[-1]) if sim.daily_returns else np.zeros(n_assets),
+            sim.weights,
+            [sim.portfolio_value]
+            ])
 
         #agent decides new weights
         action_weights = agent.act(state)

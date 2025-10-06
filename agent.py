@@ -5,14 +5,16 @@ class MLP:
     def __init__(self, input_size, hidden_size, output_size):
         self.w1 = np.random.randn(input_size, hidden_size) * 0.1
         self.b1 = np.zeros(hidden_size)
-        self.w2 = np.random.randn(input_size, hidden_size) * 0.1
-        self.b2 = np.zeros(hidden_size)
+        self.w2 = np.random.randn(hidden_size, output_size) * 0.1
+        self.b2 = np.zeros(output_size)
     
     def forward(self, x):
+        #lets make this a 2d vector to avoid type mismatch
+        x = np.array(x).reshape(1, -1)
         z1 = x @ self.w1 + self.b1
         a1 = np.tanh(z1)
         z2 = a1 @ self.w2 + self.b2
-        return z2 #finalinput
+        return z2.flatten() #shape (output_size,) finaloutput
     
     def softmax(self, x):
         exp_x = np.exp(x - np.max(x)) #for stability

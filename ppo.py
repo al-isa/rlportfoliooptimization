@@ -19,3 +19,12 @@ class RolloutBuffer:
 
     def clear(self):
         self.__init__()
+    
+    def compute_gae(rewards, values, dones, gamma=0.99, lam=0.95):
+        advantages = []
+        gae = 0
+        values = values + [0] #add final bootstrap value
+
+        returns = 0
+
+        return advantages, returns

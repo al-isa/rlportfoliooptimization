@@ -148,11 +148,7 @@ def grad_value(net, state, target_return, lr=1e-3):
     net.w1 -= lr * dL_dw1
     net.b1 -= lr * dl_db1
     net.w2 -= lr * dL_dw2
-    net.b2 -= lr * dL_db2()
-
-def dL_db2():
-    #because dL_db2 is just dloss w.r.t z2
-    return np.array([1.0])
+    net.b2 -= lr * dL_db2
 
 
 def update_weights(net, state, action, target, adv, lr, grad_fn):

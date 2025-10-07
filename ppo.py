@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import dirichlet
 
 class RolloutBuffer:
     def __init__(self):
@@ -50,7 +51,8 @@ def ppo_update(agent, buffer, clip_epsilon=0.2, epochs=5, lr=1e-3):
     advantages = np.array(advantages)
     returns = np.array(returns)
 
-    print("Before update w1[0][:3]:", agent.policy_net.w1[0][:3].copy())
+    # before_w1 = agent.policy_net.w1[0][:3].copy()
+    # print("Before update w1[0][:3]:", before_w1)
 
 
     for epoch in range(epochs):
@@ -63,10 +65,10 @@ def ppo_update(agent, buffer, clip_epsilon=0.2, epochs=5, lr=1e-3):
 
             #policy forward pass
             logits = agent.policy_net.forward(state)
-            probs = agent.policy_net.softmax(logits)
+            alpha = np.log1p(np.exp(logits)) + 1e-3
 
             #new log prob of taken action (multivariate softmax)
-            log_prob = np.log(np.dot(probs, action_taken) + 1e-8)
+            log_prob = dirichlet.logpdf(action_taken, alpha)
             ratio = np.exp(log_prob - old_log_prob)
 
             #clip ratio
@@ -80,9 +82,9 @@ def ppo_update(agent, buffer, clip_epsilon=0.2, epochs=5, lr=1e-3):
             #combine losses
             total_loss = policy_loss + 0.5 * value_loss #we can do entropy lateer
 
-            print(f"Epoch {epoch} Step {i} | Advantage: {adv:.5f}, Return: {ret:.5f}, "
-                  f"Old log prob: {old_log_prob:.5f}, New log prob: {log_prob:.5f}, "
-                  f"Ratio: {ratio:.5f}, Policy Loss: {policy_loss:.5f}, Value Loss: {value_loss:.5f}")
+            # print(f"Epoch {epoch} Step {i} | Advantage: {adv:.5f}, Return: {ret:.5f}, "
+            #       f"Old log prob: {old_log_prob:.5f}, New log prob: {log_prob:.5f}, "
+            #       f"Ratio: {ratio:.5f}, Policy Loss: {policy_loss:.5f}, Value Loss: {value_loss:.5f}")
 
 
             #backpropagation (manual gradient descent)
@@ -90,7 +92,8 @@ def ppo_update(agent, buffer, clip_epsilon=0.2, epochs=5, lr=1e-3):
             for net, loss_grad_fn in [(agent.policy_net, grad_policy),
                                         (agent.value_net, grad_value)]:
                 update_weights(net, state, action_taken, ret, adv, lr, loss_grad_fn)
-    print("After  update w1[0][:3]:", agent.policy_net.w1[0][:3])
+    # print("After  update w1[0][:3]:", agent.policy_net.w1[0][:3])
+    # print("delta:", agent.policy_net.w1[0][:3] - before_w1)
 
 
 def grad_policy(net, state, action_taken, advantage, lr=1e-3):
@@ -105,10 +108,17 @@ def grad_policy(net, state, action_taken, advantage, lr=1e-3):
     a1 = np.tanh(z1)
     z2 = a1 @ net.w2 + net.b2
     logits = z2.flatten()
-    probs = net.softmax(logits)
 
-    #dL/dlogits = (probs - one_hot(action)) * advantage
-    dlogits = (probs - action_taken) * advantage
+    #use softplus to make positive alpha values
+    alpha = np.log1p(np.exp(logits)) + 1e-3
+
+    #gradient of log dirichlet wrt alpha
+    digamma_sum = np.sum(np.log(alpha))
+    grad_logpdf = (np.log(action_taken + 1e-8) - np.log(alpha + 1e-8)) * advantage
+
+    #chain rule back to logits (via softplus derivative)
+    softplus_deriv = 1 /  (1 + np.exp(-logits))
+    dlogits = grad_logpdf * softplus_deriv
 
     #backprop w2, b2
     dL_dw2 = a1.T @ dlogits.reshape(1, -1)
@@ -122,7 +132,7 @@ def grad_policy(net, state, action_taken, advantage, lr=1e-3):
     dL_dw1 = x.T @ dz1
     dL_db1 = dz1[0]
 
-    print("Gradient norm (policy w1):", np.linalg.norm(dL_dw1))
+    #print("Gradient norm (policy w1):", np.linalg.norm(dL_dw1))
 
 
     #gradient step
@@ -158,7 +168,7 @@ def grad_value(net, state, target_return, lr=1e-3):
     dL_dw1 = x.T @ dz1
     dL_db1 = dz1[0]
 
-    print("Gradient norm (value w1):", np.linalg.norm(dL_dw1))
+    #print("Gradient norm (value w1):", np.linalg.norm(dL_dw1))
 
     #gradient step
     net.w1 -= lr * dL_dw1

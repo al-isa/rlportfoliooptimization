@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import dirichlet
 
 class MLP:
     """Simple fully connected neural network"""
@@ -20,9 +21,13 @@ class MLP:
         exp_x = np.exp(x - np.max(x)) #for stability
         return exp_x / np.sum(exp_x)
     
+    def softplus(self, x):
+        return np.log1p(np.exp(x))
+    
     def predict_action(self, x):
         logits = self.forward(x)
-        return self.softmax(logits) #interpreted as portfolio weights
+        alpha = self.softplus(logits) + 1e-3 #avoid zeroes
+        return np.random.dirichlet(alpha) #interpreted as portfolio weights
     
     def predict_value(self, x):
         return self.forward(x)[0] #scalar output
@@ -38,7 +43,9 @@ class PPOAgent:
         """
         Given a state vector, return portfolio weights (action)
         """
-        weights = self.policy_net.predict_action(state)
+        logits = self.policy_net.forward(state)
+        alpha = np.log1p(np.exp(logits)) + 1e-3
+        weights = np.random.dirichlet(alpha)
         return weights #already sums to 1 due to softmax
     
     def evaluate_values(self, state):

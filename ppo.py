@@ -50,9 +50,11 @@ def ppo_update(agent, buffer, clip_epsilon=0.2, epochs=5, lr=1e-3):
     advantages = np.array(advantages)
     returns = np.array(returns)
 
+    print("Before update w1[0][:3]:", agent.policy_net.w1[0][:3].copy())
+
+
     for epoch in range(epochs):
         for i in range(len(states)):
-            print(f"  Training step {epoch + 1}, sample {i + 1}")
             state = states[i]
             action_taken = actions[i]
             adv = advantages[i]
@@ -78,11 +80,18 @@ def ppo_update(agent, buffer, clip_epsilon=0.2, epochs=5, lr=1e-3):
             #combine losses
             total_loss = policy_loss + 0.5 * value_loss #we can do entropy lateer
 
+            print(f"Epoch {epoch} Step {i} | Advantage: {adv:.5f}, Return: {ret:.5f}, "
+                  f"Old log prob: {old_log_prob:.5f}, New log prob: {log_prob:.5f}, "
+                  f"Ratio: {ratio:.5f}, Policy Loss: {policy_loss:.5f}, Value Loss: {value_loss:.5f}")
+
+
             #backpropagation (manual gradient descent)
             #we use finite differences for now (but it is very basic i know)
             for net, loss_grad_fn in [(agent.policy_net, grad_policy),
                                         (agent.value_net, grad_value)]:
                 update_weights(net, state, action_taken, ret, adv, lr, loss_grad_fn)
+    print("After  update w1[0][:3]:", agent.policy_net.w1[0][:3])
+
 
 def grad_policy(net, state, action_taken, advantage, lr=1e-3):
     """"
@@ -99,7 +108,7 @@ def grad_policy(net, state, action_taken, advantage, lr=1e-3):
     probs = net.softmax(logits)
 
     #dL/dlogits = (probs - one_hot(action)) * advantage
-    dlogits = probs - action_taken
+    dlogits = (probs - action_taken) * advantage
 
     #backprop w2, b2
     dL_dw2 = a1.T @ dlogits.reshape(1, -1)
@@ -111,11 +120,14 @@ def grad_policy(net, state, action_taken, advantage, lr=1e-3):
 
     #backprop w1, b1
     dL_dw1 = x.T @ dz1
-    dl_db1 = dz1[0]
+    dL_db1 = dz1[0]
+
+    print("Gradient norm (policy w1):", np.linalg.norm(dL_dw1))
+
 
     #gradient step
     net.w1 -= lr * dL_dw1
-    net.b1 -= lr * dl_db1
+    net.b1 -= lr * dL_db1
     net.w2 -= lr * dL_dw2
     net.b2 -= lr * dL_db2
 
@@ -144,11 +156,13 @@ def grad_value(net, state, target_return, lr=1e-3):
 
     #backprop w1, b1
     dL_dw1 = x.T @ dz1
-    dl_db1 = dz1[0]
+    dL_db1 = dz1[0]
+
+    print("Gradient norm (value w1):", np.linalg.norm(dL_dw1))
 
     #gradient step
     net.w1 -= lr * dL_dw1
-    net.b1 -= lr * dl_db1
+    net.b1 -= lr * dL_db1
     net.w2 -= lr * dL_dw2
     net.b2 -= lr * dL_db2
 

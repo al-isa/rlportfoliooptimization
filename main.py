@@ -69,12 +69,12 @@ if __name__ == "__main__":
 
     
     # Plot results
-    plt.plot(np.cumsum(episode_returns))
-    plt.title("Cumulative Return Over Episodes")
-    plt.xlabel("Episode")
-    plt.ylabel("Cumulative Return")
-    plt.grid(True)
-    plt.show()
+    # plt.plot(np.cumsum(episode_returns))
+    # plt.title("Cumulative Return Over Episodes")
+    # plt.xlabel("Episode")
+    # plt.ylabel("Cumulative Return")
+    # plt.grid(True)
+    # plt.show()
 
     #visulaization stuff
     # plot_portfolio_value(sim.portfolio_history)

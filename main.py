@@ -2,6 +2,7 @@ from simulator import MarketSimulator
 from plot import plot_asset_prices, plot_portfolio_value, plot_with_regimes
 from agent import PPOAgent
 from ppo import ppo_update, RolloutBuffer
+from scipy.stats import dirichlet
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -25,7 +26,7 @@ if __name__ == "__main__":
         print("Initial prices:", sim.prices)
         print("Initial portfolio value:", sim.portfolio_value)
 
-        for step in range(5):
+        for step in range(n_days):
             #create state vector
             prices = sim.prices
             recent_returns = sim.daily_returns[-1] if sim.daily_returns else np.zeros(n_assets)
@@ -37,18 +38,13 @@ if __name__ == "__main__":
                 ])
 
             #agent action
-            action = agent.act(state)
+            action, log_prob, alpha = agent.act(state)
             if step == 0:
                 print(f" Agent weights on Day 0: {action.round(3)}")
             sim.set_weights(action)
 
             #value estimate ( for advantage)
             value_est = agent.evaluate_values(state)
-
-            #log porb of action (softmax)
-            logits = agent.policy_net.forward(state)
-            probs = agent.policy_net.softmax(logits)
-            log_prob = np.log(np.dot(probs, action) + 1e-8)
 
             #step sim
             prices, returns, regime, reward, p_value = sim.step()

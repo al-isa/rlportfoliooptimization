@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.stats import dirichlet
+from ppo import stable_softplus, dirichlet_log_prob
 
 class MLP:
     """Simple fully connected neural network"""
@@ -17,18 +18,6 @@ class MLP:
         z2 = a1 @ self.w2 + self.b2
         return z2.flatten() #shape (output_size,) finaloutput
     
-    def softmax(self, x):
-        exp_x = np.exp(x - np.max(x)) #for stability
-        return exp_x / np.sum(exp_x)
-    
-    def softplus(self, x):
-        return np.log1p(np.exp(x))
-    
-    def predict_action(self, x):
-        logits = self.forward(x)
-        alpha = self.softplus(logits) + 1e-3 #avoid zeroes
-        return np.random.dirichlet(alpha) #interpreted as portfolio weights
-    
     def predict_value(self, x):
         return self.forward(x)[0] #scalar output
     
@@ -44,9 +33,14 @@ class PPOAgent:
         Given a state vector, return portfolio weights (action)
         """
         logits = self.policy_net.forward(state)
-        alpha = np.log1p(np.exp(logits)) + 1e-3
-        weights = np.random.dirichlet(alpha)
-        return weights #already sums to 1 due to softmax
+        alpha = stable_softplus(logits) + 1e-3
+        alpha = np.clip(alpha, 0.5, 50.0)
+
+        weights = np.random.gamma(alpha)
+        weights /= np.sum(weights)
+
+        log_prob = dirichlet.logpdf(weights, alpha)
+        return weights, log_prob, alpha #already sums to 1 due to softmax
     
     def evaluate_values(self, state):
         return self.value_net.predict_value(state)

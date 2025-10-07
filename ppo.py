@@ -37,6 +37,7 @@ def ppo_update(agent, buffer, clip_epsilon=0.2, epochs=5, lr=1e-3):
     """
     Performs PPO updates on polciy and value networks
     """
+    print(f"PPO Update Called: {len(buffer.states)} steps in buffer")
     states = np.array(buffer.states)
     actions = np.array(buffer.actions)
     rewards = np.array(buffer.rewards)
@@ -51,6 +52,7 @@ def ppo_update(agent, buffer, clip_epsilon=0.2, epochs=5, lr=1e-3):
 
     for epoch in range(epochs):
         for i in range(len(states)):
+            print(f"  Training step {epoch + 1}, sample {i + 1}")
             state = states[i]
             action_taken = actions[i]
             adv = advantages[i]
@@ -67,7 +69,7 @@ def ppo_update(agent, buffer, clip_epsilon=0.2, epochs=5, lr=1e-3):
 
             #clip ratio
             clipped_ratio = np.clip(ratio, 1 - clip_epsilon, 1 + clip_epsilon)
-            policy_loss = -min(ratio * adv, clipped_ratio * adv)
+            policy_loss = -np.minimum(ratio * adv, clipped_ratio * adv)
 
             #value forward pass
             value_est = agent.value_net.predict_value(state)

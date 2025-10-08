@@ -3,6 +3,8 @@ from scipy.stats import dirichlet
 from scipy.special import gammaln, psi
 from math import lgamma
 
+np.random.seed(42)
+
 class RolloutBuffer:
     def __init__(self):
         self.states = []
@@ -57,7 +59,7 @@ def compute_gae(rewards, values, dones, next_value, gamma=0.99, lam=0.95):
     returns = [adv + val for adv, val in zip(advantages, values[:-1])]
     return advantages, returns
 
-def ppo_update(agent, buffer, clip_epsilon=0.2, epochs=5, lr=1e-4):
+def ppo_update(agent, buffer, clip_epsilon=0.2, epochs=5, lr_policy = 3e-4, lr_value = 1e-3, entropy_coef = 0.01):
     """
     Performs PPO updates on polciy and value networks
     """
@@ -77,58 +79,88 @@ def ppo_update(agent, buffer, clip_epsilon=0.2, epochs=5, lr=1e-4):
 
     advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
-    advantages = np.clip(advantages, -5, 5)
-
+    batch_size = 32
+    n = len(states)
 
     # before_w1 = agent.policy_net.w1[0][:3].copy()
     # print("Before update w1[0][:3]:", before_w1)
 
 
     for epoch in range(epochs):
-        for i in range(len(states)):
-            state = states[i]
-            action_taken = actions[i]
-            action_taken = np.clip(actions[i], 1e-8, 1.0)
-            action_taken /= np.sum(action_taken)
+        idxs = np.random.permutation(n)
 
-            adv = advantages[i]
-            ret = returns[i]
-            old_log_prob = log_prob_old[i]
+        epoch_loss_pi = 0
+        epoch_loss_v = 0
+        epoch_ratio = 0
+        epoch_ent = 0
+        n_batches = 0
 
-            #policy forward pass
-            logits = agent.policy_net.forward(state)
+        for start in range(0, n, batch_size):
+            end = start + batch_size
+            batch_idx = idxs[start:end]
 
-            # alpha = np.log1p(np.exp(logits)) + 1e-3
-            # alpha = np.clip(alpha, 1e-3, 20.0)
-            alpha = np.clip(np.exp(np.clip(logits, -3, 3)) + 0.5, 0.6, 10.0)
+            batch_loss_pi = 0
+            batch_loss_v = 0
+            batch_ratio = 0
+            batch_ent = 0
 
-            # action_taken = np.clip(action_taken, 1e-8, 1.0)
-            # action_taken /= np.sum(action_taken)
+            for i in batch_idx:
+                state = states[i]
+                action_taken = actions[i]
+                action_taken = np.clip(actions[i], 1e-10, 1.0)
+                action_taken = action_taken / np.sum(action_taken)
 
-            #new log prob of taken action (multivariate softmax)
-            log_prob = dirichlet.logpdf(action_taken, alpha)
-            ratio = np.exp(log_prob - old_log_prob)
+                adv = advantages[i]
+                ret = returns[i]
+                old_log_prob = log_prob_old[i]
 
-            #clip ratio
-            clipped_ratio = np.clip(ratio, 1 - clip_epsilon, 1 + clip_epsilon)
-            policy_loss = -np.minimum(ratio * adv, clipped_ratio * adv).mean()
+                #policy forward pass
+                logits = agent.policy_net.forward(state)
 
-            #value forward pass
-            value_est = agent.value_net.predict_value(state)
-            value_loss = (value_est - ret) ** 2
+                # alpha = np.log1p(np.exp(logits)) + 1e-3
+                # alpha = np.clip(alpha, 1e-3, 20.0)
+                alpha = np.exp(np.clip(logits, -1, 1)) + 1.5
+                alpha = np.clip(alpha, 1.0, 5.0)
 
-            #combine losses
-            entropy = dirichlet.entropy(alpha)
-            entropy_coef = max(0.02 * (0.995 ** epoch), 0.001)
-            total_loss = policy_loss + 0.5 * value_loss - entropy_coef * entropy #entropy maybe
+                # action_taken = np.clip(action_taken, 1e-8, 1.0)
+                # action_taken /= np.sum(action_taken)
 
-            if i % 10 == 0:
-                print(f"Epoch {epoch} Step {i} | Advantage: {adv:.5f}, Return: {ret:.5f}, "
-                    f"Old log prob: {old_log_prob:.5f}, New log prob: {log_prob:.5f}, "
-                    f"Ratio: {ratio:.5f}, Policy Loss: {policy_loss:.5f}, Value Loss: {value_loss:.5f}")
+                #new log prob of taken action (multivariate softmax)
+                log_prob = dirichlet.logpdf(action_taken, alpha)
+                ratio = np.exp(log_prob - old_log_prob)
 
-            grad_policy(agent.policy_net, state, action_taken, adv, lr * 1.0)
-            grad_value(agent.value_net, state, ret, lr * 5.0)
+                #clip ratio
+                clipped_ratio = np.clip(ratio, 1 - clip_epsilon, 1 + clip_epsilon)
+                policy_loss = -np.minimum(ratio * adv, clipped_ratio * adv).mean()
+
+                #value forward pass
+                value_est = agent.value_net.predict_value(state)
+                value_loss = (value_est - ret) ** 2
+
+                #combine losses
+                entropy = dirichlet.entropy(alpha + 1e-3)
+                # entropy_coef = max(0.02 * (0.995 ** epoch), 0.001)
+                # total_loss = policy_loss + 0.5 * value_loss - entropy_coef * entropy #entropy maybe
+
+                if i % 10 == 0:
+                    print(f"Epoch {epoch} Step {i} | Advantage: {adv:.5f}, Return: {ret:.5f}, "
+                        f"Old log prob: {old_log_prob:.5f}, New log prob: {log_prob:.5f}, "
+                        f"Ratio: {ratio:.5f}, Policy Loss: {policy_loss:.5f}, Value Loss: {value_loss:.5f}")
+
+                grad_policy(agent.policy_net, state, action_taken, adv, lr * 1.0)
+                grad_value(agent.value_net, state, ret, lr * 5.0)
+
+                loss_pi += policy_loss
+                loss_v += value_loss
+                mean_ratio += ratio
+                mean_ent += entropy
+            mean_ratio /= len(batch_idx)
+            mean_ent /= len(batch_idx)
+            loss_pi /= len(batch_idx)
+            loss_v /= len(batch_idx)
+        if epoch % 1 == 0:
+            print(f"Epoch {epoch} | π_loss {loss_pi:.4f} | V_loss {loss_v:.4f} | "
+                  f"ratio {mean_ratio:.3f} | entropy {mean_ent:.3f}")
 
             #backpropagation (manual gradient descent)
             #we use finite differences for now (but it is very basic i know)
